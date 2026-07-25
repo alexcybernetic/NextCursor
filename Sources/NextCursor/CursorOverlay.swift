@@ -145,7 +145,10 @@ final class CursorOverlay {
             .ignoresCycle
         ]
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.cursorWindow)) - 1)
-        panel.sharingType = .none
+
+        // Treat the adaptive cursor as normal shareable window content so it
+        // remains visible in full-display screenshots and screen recordings.
+        panel.sharingType = .readOnly
 
         let initialShapeFrame = CGRect(
             x: initialPosition.x - 10,

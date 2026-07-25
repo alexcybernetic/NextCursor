@@ -16,7 +16,7 @@ final class CursorEngine {
     private var latestTarget: CursorTarget?
     private var wasPressed = false
     private var isDeepIdle = false
-    private var usesPointerInertia = true
+    private var usesPointerInertia = false
 
     private(set) var isRunning = false
 

@@ -9,7 +9,8 @@ NextCursor replaces the arrow with a soft circular pointer that:
 - changes to an I-beam over text;
 - compresses while clicking;
 - offers session-only optional pointer inertia;
-- fades after inactivity; and
+- fades after inactivity;
+- appears in full-display screenshots and screen recordings; and
 - works across displays, Spaces, and full-screen apps.
 
 The physical hit point always remains inside the hovered control. Only the rendered pointer settles into the control, so clicks keep their native macOS behavior and NextCursor never warps the mouse or invokes UI actions.
@@ -37,11 +38,11 @@ open Build/NextCursor.app
 
 Use `./Scripts/run.sh` only when you explicitly want to rebuild and run a debug version.
 
-Grant **NextCursor Portable** access in **System Settings → Privacy & Security → Accessibility** when prompted. The portable build has its own bundle identity, so it does not conflict with entries from older installed copies. Because development builds are ad-hoc signed, macOS may ask again after the executable changes, but not each time the unchanged app starts.
+Before first use, manually add the exact `Build/NextCursor.app` copy in **System Settings → Privacy & Security → Accessibility** and enable it. NextCursor starts quietly and remains inactive until access is granted. The portable build has its own bundle identity, so an entry for an older copy does not authorize it. Because development builds are ad-hoc signed, macOS may require access again after the executable changes, but not each time the unchanged app starts.
 
 ## Quit or recover
 
-Use the checked **Pointer Inertia** menu item to enable or disable free-pointer smoothing for the current session. Choose **Restore System Cursor and Quit** to return immediately to the default macOS pointer. The emergency toggle is **Control–Option–Command–P**. Normal quit, session lock, and display sleep all restore the native pointer before removing the overlay. NextCursor saves no enabled state, creates no login item, and changes no persistent cursor setting.
+Use **Pointer Inertia** in the menu to enable free-pointer smoothing for the current session; it is disabled on every launch. Choose **Restore System Cursor and Quit** to return immediately to the default macOS pointer. The emergency toggle is **Control–Option–Command–P**. Normal quit, session lock, and display sleep all restore the native pointer before removing the overlay. NextCursor saves no enabled state, creates no login item, and changes no persistent cursor setting.
 
 If the process is force-killed and macOS does not restore the pointer automatically, run:
 

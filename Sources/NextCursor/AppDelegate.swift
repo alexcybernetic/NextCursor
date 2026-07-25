@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var terminationSignalSources: [DispatchSourceSignal] = []
     private var sessionIsActive = true
     private var wantsCursor = true
-    private var usesPointerInertia = true
+    private var usesPointerInertia = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -21,8 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Running the app means the adaptive cursor is enabled. Nothing about
         // that state is persisted after the process exits.
         wantsCursor = true
-        usesPointerInertia = true
-        engine.setPointerInertiaEnabled(true)
+        usesPointerInertia = false
+        engine.setPointerInertiaEnabled(false)
 
         setUpStatusItem()
         observeSessionState()
@@ -32,12 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         startPermissionTimer()
         reconcileState()
-
-        if !AXIsProcessTrusted() {
-            DispatchQueue.main.async { [weak self] in
-                self?.explainAccessibilityPermission()
-            }
-        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -85,14 +79,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         permissionItem.target = self
         menu.addItem(permissionItem)
 
-        let revealItem = NSMenuItem(
-            title: "Reveal This App in Finder",
-            action: #selector(revealAppInFinder),
-            keyEquivalent: ""
-        )
-        revealItem.target = self
-        menu.addItem(revealItem)
-
         let emergencyItem = NSMenuItem(
             title: "Emergency Toggle: ⌃⌥⌘P",
             action: nil,
@@ -127,15 +113,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let trusted = AXIsProcessTrusted()
         if !trusted {
             enableItem.state = .off
-            enableItem.title = "Cursor Inactive — Accessibility Required…"
+            enableItem.title = "Cursor Inactive — Accessibility Required"
+            enableItem.isEnabled = false
         } else {
             enableItem.state = wantsCursor ? .on : .off
             enableItem.title = wantsCursor ? "NextCursor Enabled" : "Enable NextCursor"
+            enableItem.isEnabled = true
         }
         inertiaItem.state = usesPointerInertia ? .on : .off
         permissionItem.title = trusted
             ? "Accessibility: Granted"
-            : "Accessibility Required for This App Copy…"
+            : "Open Accessibility Settings…"
+        permissionItem.isEnabled = !trusted
 
         if let image = NSImage(
             systemSymbolName: engine.isRunning ? "circle.fill" : "circle.dashed",
@@ -205,47 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateMenu()
     }
 
-    private func explainAccessibilityPermission() {
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = "This Copy Needs Accessibility Access"
-        alert.informativeText = "macOS grants Accessibility access to a specific signed app copy. An entry for an older NextCursor does not authorize this portable copy.\n\nRemove the old entry if necessary, then add this exact app:\n\n\(Bundle.main.bundlePath)\n\nNextCursor reads structural metadata only; it does not read labels or values or perform actions."
-        alert.addButton(withTitle: "Open Accessibility Settings")
-        alert.addButton(withTitle: "Reveal This App")
-        alert.addButton(withTitle: "Not Now")
-
-        NSApp.activate(ignoringOtherApps: true)
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            requestAccessibilityPermission()
-        case .alertSecondButtonReturn:
-            revealAppInFinder()
-        default:
-            break
-        }
-    }
-
-    private func requestAccessibilityPermission() {
-        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        let options = [promptKey: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-
-        // The system prompt normally links directly to this pane. Opening it
-        // as well makes recovery straightforward if permission was declined.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            guard !AXIsProcessTrusted(),
-                  let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
-                return
-            }
-            NSWorkspace.shared.open(url)
-        }
-    }
-
     @objc private func toggleEnabled() {
-        guard AXIsProcessTrusted() else {
-            explainAccessibilityPermission()
-            return
-        }
+        guard AXIsProcessTrusted() else { return }
 
         wantsCursor.toggle()
         reconcileState()
@@ -258,27 +208,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openAccessibilitySettings() {
-        if AXIsProcessTrusted() {
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Access Is Enabled"
-            alert.informativeText = "NextCursor uses it only to read structural metadata for the control directly beneath the pointer."
-            alert.addButton(withTitle: "OK")
-            NSApp.activate(ignoringOtherApps: true)
-            alert.runModal()
-        } else {
-            explainAccessibilityPermission()
+        guard !AXIsProcessTrusted(),
+              let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+            return
         }
-    }
-
-    @objc private func revealAppInFinder() {
-        NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func showAbout() {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let credits = NSMutableAttributedString(
+            string: "Adaptive mouse cursor for the next generation.\n\n",
+            attributes: [.paragraphStyle: paragraphStyle]
+        )
+        credits.append(
+            NSAttributedString(
+                string: "github.com/alexcybernetic/NextCursor",
+                attributes: [
+                    .foregroundColor: NSColor.linkColor,
+                    .link: URL(string: "https://github.com/alexcybernetic/NextCursor")!,
+                    .paragraphStyle: paragraphStyle
+                ]
+            )
+        )
+
         let options: [NSApplication.AboutPanelOptionKey: Any] = [
             .applicationName: "NextCursor",
             .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development",
-            .credits: NSAttributedString(string: "An iPad-style adaptive pointer for macOS.\nEverything runs locally on your Mac.")
+            .credits: credits
         ]
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: options)

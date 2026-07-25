@@ -14,12 +14,7 @@ rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$BIN_DIR/NextCursor" "$CONTENTS/MacOS/NextCursor"
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
-
-if [[ -f "$ROOT/Resources/NextCursor.icns" ]]; then
-    cp "$ROOT/Resources/NextCursor.icns" "$CONTENTS/Resources/NextCursor.icns"
-    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string NextCursor" "$CONTENTS/Info.plist" 2>/dev/null \
-        || /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile NextCursor" "$CONTENTS/Info.plist"
-fi
+cp "$ROOT/Resources/NextCursor.icns" "$CONTENTS/Resources/NextCursor.icns"
 
 CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 codesign --force --sign "$CODESIGN_IDENTITY" --identifier com.nextcursor.NextCursorPortable "$APP"
