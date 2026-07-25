@@ -1,19 +1,8 @@
 # NextCursor
 
-An iPad-style adaptive pointer for macOS.
+Adaptive mouse cursor for the next generation.
 
-NextCursor replaces the arrow with a soft circular pointer that:
-
-- magnetically settles into accessible buttons, links, menu items, and controls;
-- morphs to the control's shape;
-- changes to an I-beam over text;
-- compresses while clicking;
-- offers session-only optional pointer inertia;
-- fades after inactivity;
-- appears in full-display screenshots and screen recordings; and
-- works across displays, Spaces, and full-screen apps.
-
-The physical hit point always remains inside the hovered control. Only the rendered pointer settles into the control, so clicks keep their native macOS behavior and NextCursor never warps the mouse or invokes UI actions.
+NextCursor gives macOS an iPad-style pointer that snaps to controls, morphs to their shape, and becomes an I-beam over text. Your real click position never moves.
 
 ## Demo
 
@@ -21,45 +10,54 @@ The physical hit point always remains inside the hovered control. Only the rende
 
 [Watch the demo video](Media/NextCursorDemo.mp4)
 
-## Why Accessibility permission is required
+## Highlights
 
-macOS does not expose iPadOS's adaptive pointer system. NextCursor uses the macOS Accessibility API to read structural metadata—role, bounds, enabled state, hierarchy, and available action names—for the element directly beneath the pointer. It does not read element labels or values, perform actions, capture the screen, access the network, or collect analytics.
+- Magnetic snapping and smooth shape morphing
+- Text cursor, click animation, and automatic fading
+- Optional pointer inertia, disabled by default
+- Multi-display, Spaces, full-screen, and full-display recording support
+- Safe cursor restoration on quit, lock, or display sleep
 
-The app will not replace the system cursor until Accessibility access has been granted.
+## Install
 
-## Build and run
+Requires **macOS 13 or newer**. The current prebuilt release supports **Apple Silicon** Macs.
 
-Requirements: macOS 13 or newer and Xcode Command Line Tools.
+1. Download and unzip `NextCursor.app`.
+2. Place it where you want to keep it, then open it.
+3. Grant access in **System Settings → Privacy & Security → Accessibility**. Add the exact `NextCursor.app` copy if it is not listed.
+
+### If macOS blocks the app
+
+The release is not notarized, so macOS may block it the first time:
+
+1. Try to open NextCursor once.
+2. Open **System Settings → Privacy & Security**.
+3. Scroll to **Security** and click **Open Anyway**.
+4. Confirm **Open**, then grant Accessibility access as described above.
+
+You only need to approve an unchanged app copy once.
+
+## Use
+
+Opening NextCursor enables it. Use the menu-bar icon to toggle **Pointer Inertia** or choose **Restore System Cursor and Quit**.
+
+Emergency toggle: **Control–Option–Command–P**
+
+## Build from source
+
+Requires Xcode Command Line Tools:
 
 ```sh
 ./Scripts/build-app.sh
 open Build/NextCursor.app
 ```
 
-This creates a portable app at `Build/NextCursor.app`; it is not installed or copied anywhere. After building once, start it again by double-clicking that same app in Finder or by running:
+## Privacy and limitations
 
-```sh
-open Build/NextCursor.app
-```
+NextCursor works locally with no network access, analytics, or screen capture. It reads only Accessibility structure for the control beneath the pointer and never performs UI actions.
 
-Use `./Scripts/run.sh` only when you explicitly want to rebuild and run a debug version.
-
-Before first use, manually add the exact `Build/NextCursor.app` copy in **System Settings → Privacy & Security → Accessibility** and enable it. NextCursor starts quietly and remains inactive until access is granted. The portable build has its own bundle identity, so an entry for an older copy does not authorize it. Because development builds are ad-hoc signed, macOS may require access again after the executable changes, but not each time the unchanged app starts.
-
-## Quit or recover
-
-Use **Pointer Inertia** in the menu to enable free-pointer smoothing for the current session; it is disabled on every launch. Choose **Restore System Cursor and Quit** to return immediately to the default macOS pointer. The emergency toggle is **Control–Option–Command–P**. Normal quit, session lock, and display sleep all restore the native pointer before removing the overlay. NextCursor saves no enabled state, creates no login item, and changes no persistent cursor setting.
-
-If the process is force-killed and macOS does not restore the pointer automatically, run:
-
-```sh
-swift Scripts/restore-system-cursor.swift
-```
-
-## Current platform limitation
-
-Snapping depends on the target app exposing controls through macOS Accessibility. Standard AppKit, SwiftUI, Catalyst, and most browser controls work; games and custom canvas-based interfaces may expose no target to morph into. In those areas, NextCursor remains circular.
+Snapping depends on each app exposing its controls through Accessibility. Games and custom canvas interfaces may remain circular.
 
 ## License
 
-NextCursor is available under the [MIT License](LICENSE).
+[MIT](LICENSE)
