@@ -52,4 +52,7 @@ swift Scripts/restore-system-cursor.swift
 ## Current platform limitation
 
 Snapping depends on the target app exposing controls through macOS Accessibility. Standard AppKit, SwiftUI, Catalyst, and most browser controls work; games and custom canvas-based interfaces may expose no target to morph into. In those areas, NextCursor remains circular.
-# NextCursor
+
+## License
+
+NextCursor is available under the [MIT License](LICENSE).
