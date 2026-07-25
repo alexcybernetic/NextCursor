@@ -15,6 +15,12 @@ NextCursor replaces the arrow with a soft circular pointer that:
 
 The physical hit point always remains inside the hovered control. Only the rendered pointer settles into the control, so clicks keep their native macOS behavior and NextCursor never warps the mouse or invokes UI actions.
 
+## Demo
+
+<video src="Media/NextCursorDemo.mp4" poster="Media/NextCursorDemo.png" controls width="100%"></video>
+
+[Watch the demo video](Media/NextCursorDemo.mp4)
+
 ## Why Accessibility permission is required
 
 macOS does not expose iPadOS's adaptive pointer system. NextCursor uses the macOS Accessibility API to read structural metadata—role, bounds, enabled state, hierarchy, and available action names—for the element directly beneath the pointer. It does not read element labels or values, perform actions, capture the screen, access the network, or collect analytics.
