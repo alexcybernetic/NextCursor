@@ -1,14 +1,23 @@
-# NextCursor
+<p align="center">
+  <img src="Resources/NextCursorIcon.png" width="128" height="128" alt="NextCursor app icon">
+</p>
 
-Adaptive mouse cursor for the next generation.
+<h1 align="center">NextCursor</h1>
 
-NextCursor gives macOS an iPad-style pointer that snaps to controls, morphs to their shape, and becomes an I-beam over text. Your real click position never moves.
+<p align="center"><strong>Adaptive mouse cursor for the next generation.</strong></p>
 
-## Demo
+<p align="center">
+  NextCursor gives macOS an iPad-style pointer that snaps to controls, morphs to their shape, and becomes an I-beam over text.<br>
+  Your real click position never moves.
+</p>
 
-<video src="Media/NextCursorDemo.mp4" poster="Media/NextCursorDemo.png" controls width="100%"></video>
+<p align="center">
+  <a href="Media/NextCursorDemo.mp4">
+    <img src="Media/NextCursorDemo.gif" width="640" alt="NextCursor animated demo">
+  </a>
+</p>
 
-[Watch the demo video](Media/NextCursorDemo.mp4)
+<p align="center"><a href="Media/NextCursorDemo.mp4">Watch the full demo video</a></p>
 
 ## Highlights
 
