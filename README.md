@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="Media/NextCursorDemo.mp4">
-    <img src="Media/NextCursorDemo.gif" width="640" alt="NextCursor animated demo">
+    <img src="Media/NextCursorDemo.gif" width="800" alt="NextCursor animated demo">
   </a>
 </p>
 
