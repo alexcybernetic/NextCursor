@@ -29,7 +29,7 @@
 
 ## Download and run
 
-[**Download NextCursor v0.1.15 for Apple Silicon →**](https://github.com/alexcybernetic/NextCursor/releases/download/v0.1.15/NextCursor-v0.1.15-macOS-arm64.zip)
+[**Download NextCursor v0.1.16 for Apple Silicon →**](https://github.com/alexcybernetic/NextCursor/releases/download/v0.1.16/NextCursor-v0.1.16-macOS-arm64.zip)
 
 Requires **macOS 13 or newer**. Unzip the download, place `NextCursor.app` where you want to keep it, and open it.
 
