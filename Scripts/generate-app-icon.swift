@@ -14,176 +14,102 @@ private func color(_ hex: UInt32, alpha: CGFloat = 1) -> NSColor {
     )
 }
 
+private struct Vector {
+    var x: CGFloat
+    var y: CGFloat
+
+    var point: NSPoint { NSPoint(x: x, y: y) }
+
+    static func direction(degrees: CGFloat) -> Vector {
+        let radians = degrees * .pi / 180
+        return Vector(x: cos(radians), y: sin(radians))
+    }
+
+    static func + (lhs: Vector, rhs: Vector) -> Vector {
+        Vector(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
+    }
+
+    static func - (lhs: Vector, rhs: Vector) -> Vector {
+        Vector(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
+    }
+
+    static func * (lhs: Vector, rhs: CGFloat) -> Vector {
+        Vector(x: lhs.x * rhs, y: lhs.y * rhs)
+    }
+}
+
+private func circle(at center: Vector, radius: CGFloat) -> NSBezierPath {
+    NSBezierPath(
+        ovalIn: NSRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        )
+    )
+}
+
 private func drawIcon() {
     let backgroundRect = NSRect(x: 72, y: 72, width: 880, height: 880)
     let background = NSBezierPath(roundedRect: backgroundRect, xRadius: 208, yRadius: 208)
 
+    // The fill is flat. The shadow sits behind it and shapes the silhouette in
+    // the Dock rather than shading the surface.
     NSGraphicsContext.saveGraphicsState()
     let backgroundShadow = NSShadow()
-    backgroundShadow.shadowColor = color(0x11142F, alpha: 0.38)
-    backgroundShadow.shadowBlurRadius = 48
-    backgroundShadow.shadowOffset = NSSize(width: 0, height: -22)
+    backgroundShadow.shadowColor = color(0x7A2E00, alpha: 0.30)
+    backgroundShadow.shadowBlurRadius = 44
+    backgroundShadow.shadowOffset = NSSize(width: 0, height: -20)
     backgroundShadow.set()
-    color(0x4432A5).setFill()
+    color(0xFF7A18).setFill()
     background.fill()
     NSGraphicsContext.restoreGraphicsState()
 
-    let backgroundGradient = NSGradient(
-        colorsAndLocations:
-            (color(0x8797FF), 0),
-            (color(0x665AEF), 0.46),
-            (color(0x34206F), 1)
-    )!
-    backgroundGradient.draw(in: background, angle: -56)
+    let head = Vector(x: 608, y: 598)
+    let headRadius: CGFloat = 146
+    let travelDegrees: CGFloat = 45
 
-    NSGraphicsContext.saveGraphicsState()
-    background.addClip()
+    let travel = Vector.direction(degrees: travelDegrees)
+    let across = Vector.direction(degrees: travelDegrees + 90)
 
-    let upperGlow = NSGradient(
-        starting: NSColor.white.withAlphaComponent(0.34),
-        ending: NSColor.white.withAlphaComponent(0)
-    )!
-    upperGlow.draw(
-        fromCenter: NSPoint(x: 220, y: 860),
-        radius: 0,
-        toCenter: NSPoint(x: 220, y: 860),
-        radius: 660,
-        options: [.drawsAfterEndingLocation]
-    )
-
-    let lowerGlow = NSGradient(
-        starting: color(0x39D8FF, alpha: 0.28),
-        ending: color(0x39D8FF, alpha: 0)
-    )!
-    lowerGlow.draw(
-        fromCenter: NSPoint(x: 820, y: 180),
-        radius: 0,
-        toCenter: NSPoint(x: 820, y: 180),
-        radius: 560,
-        options: [.drawsAfterEndingLocation]
-    )
-
-    let sheen = NSBezierPath()
-    sheen.move(to: NSPoint(x: 98, y: 750))
-    sheen.curve(
-        to: NSPoint(x: 860, y: 936),
-        controlPoint1: NSPoint(x: 330, y: 950),
-        controlPoint2: NSPoint(x: 650, y: 972)
-    )
-    sheen.line(to: NSPoint(x: 954, y: 954))
-    sheen.line(to: NSPoint(x: 72, y: 954))
-    sheen.close()
-    NSColor.white.withAlphaComponent(0.055).setFill()
-    sheen.fill()
-
-    NSGraphicsContext.restoreGraphicsState()
-
-    NSGraphicsContext.saveGraphicsState()
-    color(0xFFFFFF, alpha: 0.24).setStroke()
-    background.lineWidth = 5
-    background.stroke()
-    NSGraphicsContext.restoreGraphicsState()
-
-    let haloRect = NSRect(x: 184, y: 326, width: 656, height: 372)
-    let halo = NSBezierPath(roundedRect: haloRect, xRadius: 158, yRadius: 158)
-    NSGraphicsContext.saveGraphicsState()
-    let haloShadow = NSShadow()
-    haloShadow.shadowColor = color(0x9EEBFF, alpha: 0.32)
-    haloShadow.shadowBlurRadius = 42
-    haloShadow.shadowOffset = .zero
-    haloShadow.set()
-    color(0xDDF9FF, alpha: 0.12).setStroke()
-    halo.lineWidth = 18
-    halo.stroke()
-    NSGraphicsContext.restoreGraphicsState()
-
-    let controlRect = NSRect(x: 210, y: 350, width: 604, height: 324)
-    let control = NSBezierPath(roundedRect: controlRect, xRadius: 138, yRadius: 138)
-
-    NSGraphicsContext.saveGraphicsState()
-    let controlShadow = NSShadow()
-    controlShadow.shadowColor = color(0x171238, alpha: 0.24)
-    controlShadow.shadowBlurRadius = 30
-    controlShadow.shadowOffset = NSSize(width: 0, height: -10)
-    controlShadow.set()
-    color(0x241B62, alpha: 0.18).setFill()
-    control.fill()
-    NSGraphicsContext.restoreGraphicsState()
-
-    let controlGradient = NSGradient(
-        starting: NSColor.white.withAlphaComponent(0.18),
-        ending: NSColor.white.withAlphaComponent(0.055)
-    )!
-    controlGradient.draw(in: control, angle: 90)
-
-    color(0xFFFFFF, alpha: 0.46).setStroke()
-    control.lineWidth = 10
-    control.stroke()
-
-    let innerHighlightRect = controlRect.insetBy(dx: 15, dy: 15)
-    let innerHighlight = NSBezierPath(roundedRect: innerHighlightRect, xRadius: 123, yRadius: 123)
-    color(0xBEEFFF, alpha: 0.14).setStroke()
-    innerHighlight.lineWidth = 4
-    innerHighlight.stroke()
-
-    let cursorRect = NSRect(x: 397, y: 397, width: 230, height: 230)
-    let cursor = NSBezierPath(ovalIn: cursorRect)
-
-    NSGraphicsContext.saveGraphicsState()
-    let cursorGlow = NSShadow()
-    cursorGlow.shadowColor = color(0xAAEEFF, alpha: 0.58)
-    cursorGlow.shadowBlurRadius = 48
-    cursorGlow.shadowOffset = .zero
-    cursorGlow.set()
-    NSColor.white.withAlphaComponent(0.78).setFill()
-    cursor.fill()
-    NSGraphicsContext.restoreGraphicsState()
-
-    NSGraphicsContext.saveGraphicsState()
-    let cursorShadow = NSShadow()
-    cursorShadow.shadowColor = color(0x181132, alpha: 0.38)
-    cursorShadow.shadowBlurRadius = 28
-    cursorShadow.shadowOffset = NSSize(width: 0, height: -12)
-    cursorShadow.set()
     NSColor.white.setFill()
-    cursor.fill()
-    NSGraphicsContext.restoreGraphicsState()
+    circle(at: head, radius: headRadius).fill()
 
-    let cursorGradient = NSGradient(
-        starting: color(0xFFFFFF),
-        ending: color(0xDCE8FF)
-    )!
-    cursorGradient.draw(in: cursor, angle: 90)
+    // The tail is detached rather than fused to the head. Any tail joined to a
+    // circle is bounded below by the circle's own width — tangent edges cannot
+    // be narrower than its diameter — so a fused tail always collapses the
+    // silhouette into a teardrop and the circular pointer stops reading.
+    let gap: CGFloat = 32
+    let streakLength: CGFloat = 215
+    let streakHalfWidth: CGFloat = 60
 
-    color(0xFFFFFF, alpha: 0.82).setStroke()
-    cursor.lineWidth = 7
-    cursor.stroke()
+    // Offset by the cap radius as well as the gap. Measuring to the cap centre
+    // instead buries its leading edge inside the head and the two shapes fuse.
+    let streakStart = head - travel * (headRadius + gap + streakHalfWidth)
+    let streakTip = streakStart - travel * streakLength
 
-    let cursorShine = NSBezierPath()
-    cursorShine.appendArc(
-        withCenter: NSPoint(x: 512, y: 512),
-        radius: 96,
-        startAngle: 34,
-        endAngle: 146
+    // Blunt where it leaves the head, tapering to a point. A shape pointed at
+    // both ends reads as a detached leaf rather than as a trail.
+    let streak = NSBezierPath()
+    streak.appendArc(
+        withCenter: streakStart.point,
+        radius: streakHalfWidth,
+        startAngle: travelDegrees + 90,
+        endAngle: travelDegrees - 90,
+        clockwise: true
     )
-    NSColor.white.withAlphaComponent(0.78).setStroke()
-    cursorShine.lineWidth = 8
-    cursorShine.lineCapStyle = .round
-    cursorShine.stroke()
-
-    let snapMarks = [
-        (NSPoint(x: 346, y: 512), NSPoint(x: 370, y: 512)),
-        (NSPoint(x: 654, y: 512), NSPoint(x: 678, y: 512))
-    ]
-    for (start, end) in snapMarks {
-        let mark = NSBezierPath()
-        mark.move(to: start)
-        mark.line(to: end)
-        mark.lineWidth = 10
-        mark.lineCapStyle = .round
-        color(0xD9FAFF, alpha: 0.68).setStroke()
-        mark.stroke()
-    }
+    streak.curve(
+        to: streakTip.point,
+        controlPoint1: (streakStart - across * streakHalfWidth - travel * (streakLength * 0.35)).point,
+        controlPoint2: (streakTip + travel * (streakLength * 0.38) - across * (streakHalfWidth * 0.42)).point
+    )
+    streak.curve(
+        to: (streakStart + across * streakHalfWidth).point,
+        controlPoint1: (streakTip + travel * (streakLength * 0.38) + across * (streakHalfWidth * 0.42)).point,
+        controlPoint2: (streakStart + across * streakHalfWidth - travel * (streakLength * 0.35)).point
+    )
+    streak.close()
+    streak.fill()
 }
 
 private func pngData(size: Int) throws -> Data {
