@@ -4,6 +4,20 @@ import Foundation
 /// A permission-free escape hatch that restores the native cursor even when
 /// another application's UI is not reachable.
 final class EmergencyHotKey {
+    struct RegistrationError: LocalizedError {
+        enum Operation: String {
+            case installEventHandler = "install the event handler"
+            case registerHotKey = "register the hotkey"
+        }
+
+        let operation: Operation
+        let status: OSStatus
+
+        var errorDescription: String? {
+            "Could not \(operation.rawValue) (OSStatus \(status))."
+        }
+    }
+
     private static let signature: OSType = 0x4E_58_43_52 // "NXCR"
     private static let identifier: UInt32 = 1
 
@@ -11,9 +25,9 @@ final class EmergencyHotKey {
     private var eventHandlerReference: EventHandlerRef?
     private let action: () -> Void
 
-    init(action: @escaping () -> Void) {
+    init(action: @escaping () -> Void) throws {
         self.action = action
-        register()
+        try register()
     }
 
     deinit {
@@ -25,7 +39,7 @@ final class EmergencyHotKey {
         }
     }
 
-    private func register() {
+    private func register() throws {
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
@@ -58,7 +72,7 @@ final class EmergencyHotKey {
         }
 
         let userData = Unmanaged.passUnretained(self).toOpaque()
-        InstallEventHandler(
+        let handlerStatus = InstallEventHandler(
             GetApplicationEventTarget(),
             handler,
             1,
@@ -66,13 +80,23 @@ final class EmergencyHotKey {
             userData,
             &eventHandlerReference
         )
+        guard handlerStatus == noErr else {
+            if let eventHandlerReference {
+                RemoveEventHandler(eventHandlerReference)
+                self.eventHandlerReference = nil
+            }
+            throw RegistrationError(
+                operation: .installEventHandler,
+                status: handlerStatus
+            )
+        }
 
         let hotKeyID = EventHotKeyID(
             signature: Self.signature,
             id: Self.identifier
         )
         let modifiers = UInt32(controlKey | optionKey | cmdKey)
-        RegisterEventHotKey(
+        let hotKeyStatus = RegisterEventHotKey(
             UInt32(kVK_ANSI_P),
             modifiers,
             hotKeyID,
@@ -80,5 +104,19 @@ final class EmergencyHotKey {
             0,
             &hotKeyReference
         )
+        guard hotKeyStatus == noErr else {
+            if let hotKeyReference {
+                UnregisterEventHotKey(hotKeyReference)
+                self.hotKeyReference = nil
+            }
+            if let eventHandlerReference {
+                RemoveEventHandler(eventHandlerReference)
+                self.eventHandlerReference = nil
+            }
+            throw RegistrationError(
+                operation: .registerHotKey,
+                status: hotKeyStatus
+            )
+        }
     }
 }

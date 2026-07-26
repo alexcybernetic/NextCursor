@@ -4,33 +4,47 @@ import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let engine = CursorEngine()
+    private var runtimeState = CursorRuntimeState()
     private var statusItem: NSStatusItem!
     private var enableItem: NSMenuItem!
     private var inertiaItem: NSMenuItem!
     private var permissionItem: NSMenuItem!
     private var permissionTimer: Timer?
     private var emergencyHotKey: EmergencyHotKey?
+    private var emergencyHotKeyError: EmergencyHotKey.RegistrationError?
     private var terminationSignalSources: [DispatchSourceSignal] = []
-    private var sessionIsActive = true
-    private var wantsCursor = true
+    private var isReadyToReconcile = false
     private var usesPointerInertia = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        observeRuntimeState()
+        runtimeState.screensAreAwake = CGDisplayIsAsleep(CGMainDisplayID()) == 0
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
         // Running the app means the adaptive cursor is enabled. Nothing about
         // that state is persisted after the process exits.
-        wantsCursor = true
+        runtimeState.wantsCursor = true
         usesPointerInertia = false
         engine.setPointerInertiaEnabled(false)
 
-        setUpStatusItem()
-        observeSessionState()
-        installTerminationHandlers()
-        emergencyHotKey = EmergencyHotKey { [weak self] in
-            self?.toggleEnabled()
+        do {
+            emergencyHotKey = try EmergencyHotKey { [weak self] in
+                self?.toggleEnabled()
+            }
+        } catch let error as EmergencyHotKey.RegistrationError {
+            emergencyHotKeyError = error
+            NSLog("NextCursor emergency hotkey unavailable: %@", error.localizedDescription)
+        } catch {
+            NSLog("NextCursor emergency hotkey unavailable: %@", error.localizedDescription)
         }
+
+        setUpStatusItem()
+        installTerminationHandlers()
         startPermissionTimer()
+        isReadyToReconcile = true
         reconcileState()
     }
 
@@ -80,11 +94,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(permissionItem)
 
         let emergencyItem = NSMenuItem(
-            title: "Emergency Toggle: ⌃⌥⌘P",
+            title: emergencyHotKey == nil
+                ? "Emergency Toggle Unavailable"
+                : "Emergency Toggle: ⌃⌥⌘P",
             action: nil,
             keyEquivalent: ""
         )
         emergencyItem.isEnabled = false
+        emergencyItem.toolTip = emergencyHotKeyError?.localizedDescription
         menu.addItem(emergencyItem)
 
         menu.addItem(.separator())
@@ -116,8 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             enableItem.title = "Cursor Inactive — Accessibility Required"
             enableItem.isEnabled = false
         } else {
-            enableItem.state = wantsCursor ? .on : .off
-            enableItem.title = wantsCursor ? "NextCursor Enabled" : "Enable NextCursor"
+            enableItem.state = runtimeState.wantsCursor ? .on : .off
+            enableItem.title = runtimeState.wantsCursor ? "NextCursor Enabled" : "Enable NextCursor"
             enableItem.isEnabled = true
         }
         inertiaItem.state = usesPointerInertia ? .on : .off
@@ -135,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func observeSessionState() {
+    private func observeRuntimeState() {
         let center = NSWorkspace.shared.notificationCenter
         center.addObserver(
             self,
@@ -151,13 +168,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         center.addObserver(
             self,
-            selector: #selector(sessionResigned),
+            selector: #selector(screensSlept),
             name: NSWorkspace.screensDidSleepNotification,
             object: nil
         )
         center.addObserver(
             self,
-            selector: #selector(sessionBecameActive),
+            selector: #selector(screensWoke),
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
@@ -185,7 +202,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func reconcileState() {
-        let shouldRun = wantsCursor && sessionIsActive && AXIsProcessTrusted()
+        guard isReadyToReconcile else { return }
+
+        let shouldRun = runtimeState.shouldRun(
+            hasAccessibilityPermission: AXIsProcessTrusted()
+        )
         if shouldRun {
             engine.start()
         } else {
@@ -197,7 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleEnabled() {
         guard AXIsProcessTrusted() else { return }
 
-        wantsCursor.toggle()
+        runtimeState.wantsCursor.toggle()
         reconcileState()
     }
 
@@ -249,12 +270,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func sessionResigned() {
-        sessionIsActive = false
+        runtimeState.userSessionIsActive = false
         reconcileState()
     }
 
     @objc private func sessionBecameActive() {
-        sessionIsActive = true
+        runtimeState.userSessionIsActive = true
+        reconcileState()
+    }
+
+    @objc private func screensSlept() {
+        runtimeState.screensAreAwake = false
+        reconcileState()
+    }
+
+    @objc private func screensWoke() {
+        runtimeState.screensAreAwake = true
         reconcileState()
     }
 }

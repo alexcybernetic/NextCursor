@@ -18,9 +18,13 @@ let package = Package(
                 .linkedFramework("ApplicationServices"),
                 .linkedFramework("Carbon"),
                 .linkedFramework("CoreGraphics"),
-                .linkedFramework("JavaRuntimeSupport")
+                .linkedFramework("JavaRuntimeSupport"),
             ]
-        )
+        ),
+        .testTarget(
+            name: "NextCursorTests",
+            dependencies: ["NextCursor"]
+        ),
     ],
     swiftLanguageVersions: [.v5]
 )

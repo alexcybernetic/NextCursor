@@ -4,6 +4,7 @@ import CoreGraphics
 import QuartzCore
 
 final class CursorEngine {
+    private let diagnostics = CursorDiagnostics.shared
     private let detector = AccessibilityTargetDetector()
     private let systemCursor = SystemCursorController()
     private var overlay: CursorOverlay?
@@ -73,12 +74,21 @@ final class CursorEngine {
 
         let position = currentPointerPosition()
         let moved = hypot(position.x - lastPosition.x, position.y - lastPosition.y) > 0.05
-        let isPressed = CGEventSource.buttonState(.combinedSessionState, button: .left)
+        let isPressed =
+            CGEventSource.buttonState(.combinedSessionState, button: .left)
             || CGEventSource.buttonState(.combinedSessionState, button: .right)
         let pressChanged = isPressed != wasPressed
         let scrolled = recentScrollActivity()
 
-        systemCursor.maintainHiddenState(force: pressChanged)
+        diagnostics.observeInput(
+            moved: moved,
+            isPressed: isPressed,
+            pressChanged: pressChanged,
+            scrolled: scrolled,
+            isDeepIdle: isDeepIdle
+        )
+
+        systemCursor.maintainHiddenState()
 
         if moved || isPressed || pressChanged || scrolled {
             lastActivityTime = now

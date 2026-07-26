@@ -4,7 +4,7 @@ import Foundation
 
 final class AccessibilityTargetDetector {
     private let queue = DispatchQueue(
-        label: "works.earendil.NextCursor.accessibility",
+        label: "com.nextcursor.NextCursor.accessibility",
         qos: .userInteractive
     )
     private let systemWideElement = AXUIElementCreateSystemWide()
@@ -48,8 +48,9 @@ final class AccessibilityTargetDetector {
 
             if let frame, isValid(frame: frame), frame.insetBy(dx: -1, dy: -1).contains(point) {
                 if isMorphableControlFrame(frame),
-                   isInteractive(element: element, role: role),
-                   isEnabled(element) {
+                    isInteractive(element: element, role: role),
+                    isEnabled(element)
+                {
                     return CursorTarget(
                         kind: .control,
                         frame: frame,
@@ -94,7 +95,7 @@ final class AccessibilityTargetDetector {
             "AXTab",
             "AXSwitch",
             "AXColorWell",
-            "AXComboBox"
+            "AXComboBox",
         ]
 
         if knownRoles.contains(role) {
@@ -105,7 +106,8 @@ final class AccessibilityTargetDetector {
         // action list does not perform the action or inspect the control value.
         var actionNames: CFArray?
         guard AXUIElementCopyActionNames(element, &actionNames) == .success,
-              let names = actionNames as? [String] else {
+            let names = actionNames as? [String]
+        else {
             return false
         }
         return names.contains(kAXPressAction as String)
@@ -155,9 +157,10 @@ final class AccessibilityTargetDetector {
 
     private func frameAttribute(_ element: AXUIElement) -> CGRect? {
         guard let positionValue = attribute(element, kAXPositionAttribute as String),
-              let sizeValue = attribute(element, kAXSizeAttribute as String),
-              CFGetTypeID(positionValue) == AXValueGetTypeID(),
-              CFGetTypeID(sizeValue) == AXValueGetTypeID() else {
+            let sizeValue = attribute(element, kAXSizeAttribute as String),
+            CFGetTypeID(positionValue) == AXValueGetTypeID(),
+            CFGetTypeID(sizeValue) == AXValueGetTypeID()
+        else {
             return nil
         }
 
@@ -167,7 +170,8 @@ final class AccessibilityTargetDetector {
         let sizeAXValue = sizeValue as! AXValue
 
         guard AXValueGetValue(positionAXValue, .cgPoint, &position),
-              AXValueGetValue(sizeAXValue, .cgSize, &size) else {
+            AXValueGetValue(sizeAXValue, .cgSize, &size)
+        else {
             return nil
         }
 
@@ -180,7 +184,8 @@ final class AccessibilityTargetDetector {
 
     private func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {
         guard let value = attribute(element, name),
-              CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
             return nil
         }
         return (value as! AXUIElement)

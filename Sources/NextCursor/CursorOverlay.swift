@@ -142,7 +142,7 @@ final class CursorOverlay {
             .canJoinAllSpaces,
             .fullScreenAuxiliary,
             .stationary,
-            .ignoresCycle
+            .ignoresCycle,
         ]
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.cursorWindow)) - 1)
 
@@ -228,9 +228,14 @@ final class CursorOverlay {
             center = desiredCenter
             centerVelocity = .zero
         }
-        spring(value: &size.width, velocity: &sizeVelocity.dx, target: desiredSize.width, stiffness: 720, damping: 44, dt: dt)
-        spring(value: &size.height, velocity: &sizeVelocity.dy, target: desiredSize.height, stiffness: 720, damping: 44, dt: dt)
-        spring(value: &cornerRadius, velocity: &cornerVelocity, target: desiredRadius, stiffness: 720, damping: 44, dt: dt)
+        spring(
+            value: &size.width, velocity: &sizeVelocity.dx, target: desiredSize.width, stiffness: 720, damping: 44,
+            dt: dt)
+        spring(
+            value: &size.height, velocity: &sizeVelocity.dy, target: desiredSize.height, stiffness: 720, damping: 44,
+            dt: dt)
+        spring(
+            value: &cornerRadius, velocity: &cornerVelocity, target: desiredRadius, stiffness: 720, damping: 44, dt: dt)
 
         controlAmount.approach(desiredControlAmount, rate: 23, dt: dt)
         textAmount.approach(desiredTextAmount, rate: 27, dt: dt)

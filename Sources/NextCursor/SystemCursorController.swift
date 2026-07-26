@@ -1,18 +1,20 @@
 import AppKit
-import CoreGraphics
 import Darwin
 import JavaRuntimeSupport
 
 private typealias CursorSeedQuery = @convention(c) () -> UInt32
 
-/// Keeps the native cursor invisible while NextCursor is active and balances
-/// every hide operation before the process exits.
+/// Keeps the native cursor off screen while NextCursor is active and balances
+/// every suppression request before the process exits.
 final class SystemCursorController {
+    private let diagnostics = CursorDiagnostics.shared
     private let transparentCursor = SystemCursorController.makeTransparentCursor()
     private let cursorSeedQuery = SystemCursorController.loadCursorSeedQuery()
-    private var lastCursorSeed: UInt32?
-    private var lastSystemCursor: NSCursor?
-    private var successfulHideCalls = 0
+    private let suppressor = NativeCursorSuppressor.resolve()
+    private let dockCursorOverrideWatchdog = DockCursorOverrideWatchdog()
+    private let usesDockCursorOverrideExperiment =
+        ProcessInfo.processInfo.environment["NEXTCURSOR_DOCK_OVERRIDE_EXPERIMENT"] == "1"
+    private var lease = CursorSuppressionLease()
     private var wantsHidden = false
 
     func hide() {
@@ -22,60 +24,101 @@ final class SystemCursorController {
         // opt-in permits cursor changes from a background application.
         NSCursor.javaSetAllowsCursorSet(inBackground: true)
         wantsHidden = true
-        applyHide()
+        if usesDockCursorOverrideExperiment, dockCursorOverrideWatchdog.start() {
+            diagnostics.recordCursorOperation("block-dock-override", reason: "start")
+        }
+        acquireSuppression(reason: "start")
+        applyTransparentCursor()
+        recordCursorState(context: "start")
     }
 
-    /// Dock hover, clicks, app changes, and display transitions can replace or
-    /// reveal the native cursor. Cursor seed changes identify those real state
-    /// transitions without relying on the deprecated visibility API.
-    func maintainHiddenState(force: Bool = false) {
+    /// Recovers suppression when something has defeated it, and maintains the
+    /// transparent-image fallback when suppression cannot hold on its own.
+    func maintainHiddenState() {
         guard wantsHidden else { return }
 
-        let currentSeed = cursorSeedQuery?()
-        let currentSystemCursor = NSCursor.currentSystem
-        let seedChanged = currentSeed != nil && currentSeed != lastCursorSeed
-        let cursorChanged = currentSeed == nil
-            && currentSystemCursor != nil
-            && currentSystemCursor !== lastSystemCursor
-
-        guard force || seedChanged || cursorChanged else { return }
-        applyHide()
+        switch CursorMaintenancePolicy.action(
+            suppressionIsAuthoritative: suppressor.isAuthoritative,
+            visibility: suppressor.nativeCursorVisibility()
+        ) {
+        case .none:
+            return
+        case .reassertSuppressionAndReapplyFallbackImage:
+            reassertSuppression()
+            applyTransparentCursor()
+            recordCursorState(context: "after-reassert")
+        case .reapplyFallbackImage:
+            applyTransparentCursor()
+            recordCursorState(context: "after-reapply")
+        }
     }
 
     func show() {
-        guard wantsHidden else { return }
-
-        // Core Graphics cursor hiding is reference counted. Balance every
-        // successful call exactly, including reassertions after Dock resets.
-        for _ in 0..<successfulHideCalls {
-            _ = CGDisplayShowCursor(CGMainDisplayID())
+        if usesDockCursorOverrideExperiment, dockCursorOverrideWatchdog.stop() {
+            diagnostics.recordCursorOperation("allow-dock-override", reason: "stop")
         }
+
+        if lease.release(using: suppressor.restore) {
+            diagnostics.recordCursorOperation(
+                "restore",
+                reason: "stop via \(suppressor.identifier)"
+            )
+        }
+
+        guard wantsHidden else { return }
 
         NSCursor.arrow.set()
         NSCursor.javaSetAllowsCursorSet(inBackground: false)
 
-        successfulHideCalls = 0
         wantsHidden = false
-        lastCursorSeed = nil
-        lastSystemCursor = nil
+        recordCursorState(context: "stop")
     }
 
-    private func applyHide() {
-        if CGDisplayHideCursor(CGMainDisplayID()) == .success {
-            successfulHideCalls += 1
+    /// Re-arms suppression rather than stacking a second request. The
+    /// outstanding count stays at one however often this fires, so shutdown
+    /// stays exactly balanced. Stacking instead drove a feedback loop: each
+    /// extra request made the next reading more likely to disagree, and the
+    /// escalation ceiling left the cursor suppressed with nothing to release it.
+    private func reassertSuppression() {
+        lease.release(using: suppressor.restore)
+        if lease.acquire(using: suppressor.suppress) {
+            diagnostics.recordCursorOperation(
+                "re-arm",
+                reason: "native cursor composited while suppressed"
+            )
         }
-        transparentCursor.set()
+    }
 
-        // Both operations above may advance the seed/current cursor. Capture
-        // the resulting state so the next frame does not re-hide needlessly.
-        lastCursorSeed = cursorSeedQuery?()
-        lastSystemCursor = NSCursor.currentSystem
+    private func acquireSuppression(reason: String) {
+        if lease.acquire(using: suppressor.suppress) {
+            diagnostics.recordCursorOperation(
+                "suppress",
+                reason: "\(reason) via \(suppressor.identifier)"
+            )
+        }
+    }
+
+    private func applyTransparentCursor() {
+        transparentCursor.set()
+    }
+
+    private func recordCursorState(context: String) {
+        guard diagnostics.isEnabled else { return }
+        diagnostics.observeCursor(
+            seed: cursorSeedQuery?(),
+            visibility: suppressor.nativeCursorVisibility(),
+            wantsHidden: wantsHidden,
+            hasSuppressionLease: lease.isAcquired,
+            suppressor: suppressor.identifier,
+            context: context
+        )
     }
 
     private static func loadCursorSeedQuery() -> CursorSeedQuery? {
         let frameworkPath = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
         guard let coreGraphics = dlopen(frameworkPath, RTLD_LAZY),
-              let symbol = dlsym(coreGraphics, "CGSCurrentCursorSeed") else {
+            let symbol = dlsym(coreGraphics, "CGSCurrentCursorSeed")
+        else {
             return nil
         }
         return unsafeBitCast(symbol, to: CursorSeedQuery.self)
