@@ -27,39 +27,36 @@
 - Multi-display, Spaces, full-screen, and full-display recording support
 - Safe cursor restoration on quit, lock, or display sleep
 
-## Install
+## Download and run
 
-Requires **macOS 13 or newer**. The current prebuilt release supports **Apple Silicon** Macs.
+[**Download NextCursor v0.1.15 for Apple Silicon →**](https://github.com/alexcybernetic/NextCursor/releases/download/v0.1.15/NextCursor-v0.1.15-macOS-arm64.zip)
 
-1. Download and unzip `NextCursor.app`.
-2. Place it where you want to keep it, then open it.
-3. Grant access in **System Settings → Privacy & Security → Accessibility**. Add the exact `NextCursor.app` copy if it is not listed.
+Requires **macOS 13 or newer**. Unzip the download, place `NextCursor.app` where you want to keep it, and open it.
+
+Grant access in **System Settings → Privacy & Security → Accessibility**. Add that exact app copy if it is not listed.
 
 ### If macOS blocks the app
 
-The release is not notarized, so macOS may block it the first time:
+In Finder, **Control-click (⌃-click)** or right-click `NextCursor.app`, choose **Open**, then confirm **Open**.
 
-1. Try to open NextCursor once.
-2. Open **System Settings → Privacy & Security**.
-3. Scroll to **Security** and click **Open Anyway**.
-4. Confirm **Open**, then grant Accessibility access as described above.
+If it is still blocked, try opening it once, then go to **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway**.
 
-You only need to approve an unchanged app copy once.
+## Build from source
+
+Building requires Xcode Command Line Tools:
+
+```sh
+git clone https://github.com/alexcybernetic/NextCursor.git
+cd NextCursor
+./Scripts/build-app.sh
+open Build/NextCursor.app
+```
 
 ## Use
 
 Opening NextCursor enables it. Use the menu-bar icon to toggle **Pointer Inertia** or choose **Restore System Cursor and Quit**.
 
 Emergency toggle: **Control–Option–Command–P**
-
-## Build from source
-
-Requires Xcode Command Line Tools:
-
-```sh
-./Scripts/build-app.sh
-open Build/NextCursor.app
-```
 
 ## Privacy and limitations
 

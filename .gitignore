@@ -1,5 +1,38 @@
-.build/
-Build/
-.DS_Store
+# Swift Package Manager
+.build
 .swiftpm/
+
+# Generated app, Xcode, and release artifacts
+Build/
+Dist/
+DerivedData/
+*.dSYM/
+*.dSYM.zip
+*.dmg
+*.pkg
+*.zip
+
+# Xcode user-specific state
 xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# macOS metadata
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# Local signing and notarization material
+*.p12
+*.p8
+*.key
+*.mobileprovision
+*.provisionprofile
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
