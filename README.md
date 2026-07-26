@@ -37,9 +37,11 @@ Grant access in **System Settings → Privacy & Security → Accessibility**. Ad
 
 ### If macOS blocks the app
 
-In Finder, **Control-click (⌃-click)** or right-click `NextCursor.app`, choose **Open**, then confirm **Open**.
+If macOS offers **Move to Trash** or **Done**, choose **Done**. Then:
 
-If it is still blocked, try opening it once, then go to **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway**.
+1. Open **System Settings → Privacy & Security**.
+2. Scroll to **Security** and click **Open Anyway** beside the NextCursor message.
+3. Authenticate when asked, then confirm **Open**.
 
 ## Build from source
 
