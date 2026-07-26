@@ -4,11 +4,8 @@
 
 <h1 align="center">NextCursor</h1>
 
-<p align="center"><strong>Adaptive mouse cursor for the next generation.</strong></p>
-
 <p align="center">
-  NextCursor gives macOS an iPad-style pointer that snaps to controls, morphs to their shape, and becomes an I-beam over text.<br>
-  Your real click position never moves.
+  NextCursor gives macOS an adaptive (iPad-style) pointer that snaps to controls and morphs to their shape.<br>
 </p>
 
 <p align="center">
@@ -60,11 +57,18 @@ Opening NextCursor enables it. Use the menu-bar icon to toggle **Pointer Inertia
 
 Emergency toggle: **Control–Option–Command–P**
 
-## Privacy and limitations
+## Privacy
 
-NextCursor works locally with no network access, analytics, or screen capture. It reads only Accessibility structure for the control beneath the pointer and never performs UI actions.
+NextCursor works locally. No network access, no analytics, no screen capture.
 
-Snapping depends on each app exposing its controls through Accessibility. Games and custom canvas interfaces may remain circular.
+It looks at the control under the pointer to find out what kind of control it is, where it is, and how big it is. It never reads text, titles, or values, and it never clicks, types, or changes anything.
+
+## Limitations
+
+- Snapping needs an app to expose its controls through Accessibility. Games and apps that draw their own interface do not, so the pointer stays a plain circle over them.
+- Moving to another display and clicking into a window that was not active can flash the system arrow for an instant.
+- Apple Silicon only.
+- macOS ties Accessibility permission to the exact copy of the app. If you move it or rebuild it, grant permission again.
 
 ## License
 
