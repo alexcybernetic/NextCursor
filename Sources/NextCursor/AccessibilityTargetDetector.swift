@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
@@ -12,6 +13,19 @@ final class AccessibilityTargetDetector {
 
     func detect(at point: CGPoint, completion: @escaping (TargetDetectionResult) -> Void) {
         guard !requestInFlight else { return }
+
+        // Checked here, on the main thread, before any hit test is issued.
+        // AXUIElementCopyElementAtPosition asks the owning process to hit-test
+        // itself, and when that process is this one the work lands on the
+        // detector's background queue and re-enters AppKit and SwiftUI layout
+        // off the main thread, which faults inside accessibility geometry.
+        // Inspecting the element afterwards cannot help: the crash happens
+        // during the hit test, before there is a result to inspect.
+        guard !Self.isPointOverOwnWindow(point) else {
+            completion(TargetDetectionResult(sampledPoint: point, target: nil))
+            return
+        }
+
         requestInFlight = true
 
         queue.async { [weak self] in
@@ -25,6 +39,25 @@ final class AccessibilityTargetDetector {
         }
     }
 
+    /// Whether the pointer is over one of this application's own windows.
+    ///
+    /// The cursor overlay is excluded: it tracks the pointer, so it is always
+    /// underneath it, and treating it as our own window would disable
+    /// detection everywhere. It takes no mouse events and is not hit-tested.
+    private static func isPointOverOwnWindow(_ point: CGPoint) -> Bool {
+        // AX reports Quartz coordinates, with the origin at the top left of the
+        // primary display; NSWindow frames are AppKit's, with the origin at the
+        // bottom left.
+        let primaryScreenTop = NSScreen.screens.first?.frame.maxY ?? 0
+        let appKitPoint = CGPoint(x: point.x, y: primaryScreenTop - point.y)
+
+        return NSApp.windows.contains { window in
+            window.isVisible
+                && !window.ignoresMouseEvents
+                && window.frame.contains(appKitPoint)
+        }
+    }
+
     private func findTarget(at point: CGPoint) -> CursorTarget? {
         var hitElement: AXUIElement?
         let error = AXUIElementCopyElementAtPosition(
@@ -35,6 +68,20 @@ final class AccessibilityTargetDetector {
         )
 
         guard error == .success, var element = hitElement else { return nil }
+
+        // Never inspect this process's own interface. Reading an accessibility
+        // tree makes the owning process compute frames on whichever thread
+        // services the request, and this detector runs on a background queue.
+        // For another application that work happens over there; for our own it
+        // re-enters AppKit and SwiftUI layout off the main thread, which faults
+        // inside accessibility frame computation. Snapping to NextCursor's own
+        // menu bar item or settings window would be wrong regardless.
+        var elementProcessIdentifier: pid_t = 0
+        guard AXUIElementGetPid(element, &elementProcessIdentifier) == .success,
+            elementProcessIdentifier != ProcessInfo.processInfo.processIdentifier
+        else {
+            return nil
+        }
 
         var textCandidate: CursorTarget?
         var visited = Set<Int>()
