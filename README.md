@@ -19,14 +19,16 @@
 ## Highlights
 
 - Magnetic snapping and smooth shape morphing
+- Choose the pointer's shape, size, colours, and border
+- Separate colours for light and dark appearance
 - Text cursor, click animation, and automatic fading
-- Optional pointer inertia, disabled by default
+- Optional motion inertia, disabled by default
 - Multi-display, Spaces, full-screen, and full-display recording support
 - Safe cursor restoration on quit, lock, or display sleep
 
 ## Download and run
 
-[**Download NextCursor v0.1.16 for Apple Silicon →**](https://github.com/alexcybernetic/NextCursor/releases/download/v0.1.16/NextCursor-v0.1.16-macOS-arm64.zip)
+[**Download NextCursor v0.2.0 for Apple Silicon →**](https://github.com/alexcybernetic/NextCursor/releases/download/v0.2.0/NextCursor-v0.2.0-macOS-arm64.zip)
 
 Requires **macOS 13 or newer**. Unzip the download, place `NextCursor.app` where you want to keep it, and open it.
 
@@ -53,7 +55,9 @@ open Build/NextCursor.app
 
 ## Use
 
-Opening NextCursor enables it. Use the menu-bar icon to toggle **Pointer Inertia** or choose **Restore System Cursor and Quit**.
+Opening NextCursor enables it. Use the menu-bar icon to open **Settings…** (⌘,), toggle **Pointer Inertia**, or choose **Restore System Cursor and Quit**.
+
+Settings cover the pointer's shape, size, border, and colours, and the appearance it takes when snapped to a control. They are stored locally and persist across launches.
 
 Emergency toggle: **Control–Option–Command–P**
 

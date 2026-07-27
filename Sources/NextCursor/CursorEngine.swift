@@ -17,12 +17,13 @@ final class CursorEngine {
     private var latestTarget: CursorTarget?
     private var wasPressed = false
     private var isDeepIdle = false
-    private var usesPointerInertia = false
+    private var settings = CursorAppearanceSettings()
 
     private(set) var isRunning = false
 
-    func setPointerInertiaEnabled(_ enabled: Bool) {
-        usesPointerInertia = enabled
+    func applySettings(_ settings: CursorAppearanceSettings) {
+        self.settings = settings
+        overlay?.applySettings(settings)
     }
 
     func start() {
@@ -31,6 +32,7 @@ final class CursorEngine {
         let now = CACurrentMediaTime()
         let position = currentPointerPosition()
         let overlay = CursorOverlay(initialPosition: position)
+        overlay.applySettings(settings)
         self.overlay = overlay
         lastPosition = position
         lastFrameTime = now
@@ -123,7 +125,7 @@ final class CursorEngine {
         overlay.update(
             physicalPosition: position,
             target: target,
-            usesPointerInertia: usesPointerInertia,
+            usesPointerInertia: settings.usesPointerInertia,
             isPressed: isPressed,
             isVisible: isVisible,
             deltaTime: CGFloat(dt)

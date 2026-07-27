@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Combine
 import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -14,7 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var emergencyHotKeyError: EmergencyHotKey.RegistrationError?
     private var terminationSignalSources: [DispatchSourceSignal] = []
     private var isReadyToReconcile = false
-    private var usesPointerInertia = false
+    private let settingsStore = CursorSettingsStore()
+    private lazy var settingsWindowController = CursorSettingsWindowController(
+        store: settingsStore
+    )
+    private var settingsSubscription: AnyCancellable?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         observeRuntimeState()
@@ -24,11 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Running the app means the adaptive cursor is enabled. Nothing about
-        // that state is persisted after the process exits.
+        // Running the app means the adaptive cursor is enabled. Whether it is
+        // enabled is tied to the process; how it looks is persisted.
         runtimeState.wantsCursor = true
-        usesPointerInertia = false
-        engine.setPointerInertiaEnabled(false)
+        engine.applySettings(settingsStore.settings)
 
         do {
             emergencyHotKey = try EmergencyHotKey { [weak self] in
@@ -42,6 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         setUpStatusItem()
+
+        // Subscribed only after the status item exists: a @Published publisher
+        // delivers its current value synchronously on subscription, so an
+        // earlier sink would drive the menu before it was built.
+        settingsSubscription = settingsStore.$settings.sink { [weak self] settings in
+            self?.engine.applySettings(settings)
+            self?.updateMenu()
+        }
+
         installTerminationHandlers()
         startPermissionTimer()
         isReadyToReconcile = true
@@ -49,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        settingsSubscription?.cancel()
         permissionTimer?.invalidate()
         engine.stop()
         terminationSignalSources.forEach { $0.cancel() }
@@ -61,8 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: "NextCursor")
-            button.image?.isTemplate = true
+            button.image = CometMark.statusItemImage(isActive: false)
             button.toolTip = "NextCursor"
         }
 
@@ -84,6 +97,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         inertiaItem.target = self
         menu.addItem(inertiaItem)
+
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(showSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         permissionItem = NSMenuItem(
             title: "Accessibility Permission…",
@@ -127,6 +148,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateMenu() {
+        guard statusItem != nil else { return }
+
         let trusted = AXIsProcessTrusted()
         if !trusted {
             enableItem.state = .off
@@ -137,19 +160,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             enableItem.title = runtimeState.wantsCursor ? "NextCursor Enabled" : "Enable NextCursor"
             enableItem.isEnabled = true
         }
-        inertiaItem.state = usesPointerInertia ? .on : .off
+        inertiaItem.state = settingsStore.settings.usesPointerInertia ? .on : .off
         permissionItem.title = trusted
             ? "Accessibility: Granted"
             : "Open Accessibility Settings…"
         permissionItem.isEnabled = !trusted
 
-        if let image = NSImage(
-            systemSymbolName: engine.isRunning ? "circle.fill" : "circle.dashed",
-            accessibilityDescription: "NextCursor"
-        ) {
-            image.isTemplate = true
-            statusItem.button?.image = image
-        }
+        statusItem.button?.image = CometMark.statusItemImage(isActive: engine.isRunning)
     }
 
     private func observeRuntimeState() {
@@ -223,9 +240,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func togglePointerInertia() {
-        usesPointerInertia.toggle()
-        engine.setPointerInertiaEnabled(usesPointerInertia)
-        updateMenu()
+        settingsStore.set(
+            !settingsStore.settings.usesPointerInertia,
+            for: \.usesPointerInertia
+        )
+    }
+
+    @objc private func showSettings() {
+        settingsWindowController.show()
     }
 
     @objc private func openAccessibilitySettings() {

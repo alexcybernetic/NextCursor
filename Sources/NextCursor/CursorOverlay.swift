@@ -18,6 +18,10 @@ private final class CursorView: NSView {
         didSet { needsDisplay = true }
     }
 
+    var pointerSettings = CursorAppearanceSettings() {
+        didSet { needsDisplay = true }
+    }
+
     override var isFlipped: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -33,40 +37,118 @@ private final class CursorView: NSView {
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
 
         if shapeAlpha > 0.001 {
-            let radius = min(
-                CursorOverlay.currentCornerRadius,
-                min(shapeRect.width, shapeRect.height) / 2
+            drawPointer(
+                in: shapeRect,
+                controlAmount: controlAmount,
+                shapeAlpha: shapeAlpha,
+                isDark: isDark
             )
-            let path = NSBezierPath(roundedRect: shapeRect, xRadius: radius, yRadius: radius)
-
-            NSGraphicsContext.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowBlurRadius = 5 + (4 * controlAmount)
-            shadow.shadowOffset = NSSize(width: 0, height: -1)
-            shadow.shadowColor = NSColor.black.withAlphaComponent(0.20 * shapeAlpha)
-            shadow.set()
-
-            let pointerWhite: CGFloat = isDark ? 0.78 : 0.34
-            let pointerAlpha = 0.78
-            let controlWhite: CGFloat = isDark ? 0.92 : 0.18
-            let controlAlpha: CGFloat = isDark ? 0.20 : 0.15
-            let white = pointerWhite + ((controlWhite - pointerWhite) * controlAmount)
-            let alpha = pointerAlpha + ((controlAlpha - pointerAlpha) * controlAmount)
-
-            NSColor(calibratedWhite: white, alpha: alpha * shapeAlpha).setFill()
-            path.fill()
-            NSGraphicsContext.restoreGraphicsState()
-
-            if controlAmount > 0.01 {
-                NSColor.labelColor.withAlphaComponent(0.11 * controlAmount * shapeAlpha).setStroke()
-                path.lineWidth = 0.75
-                path.stroke()
-            }
         }
 
         if textAmount > 0.001 {
             drawIBeam(in: shapeRect, alpha: textAmount, isDark: isDark)
         }
+    }
+
+    private func drawPointer(
+        in shapeRect: NSRect,
+        controlAmount: CGFloat,
+        shapeAlpha: CGFloat,
+        isDark: Bool
+    ) {
+        let controlFill = pointerSettings.controlFill(isDark: isDark)
+        let fill = pointerSettings
+            .fill(isDark: isDark)
+            .blended(toward: controlFill, amount: Double(controlAmount))
+
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowBlurRadius = 5 + (4 * controlAmount)
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.20 * shapeAlpha)
+        shadow.set()
+
+        let roundedPath = roundedRectanglePath(in: shapeRect)
+        let customPath = customPath(in: shapeRect)
+
+        // A polygon or heart cannot morph into the snapped control's rounded
+        // rectangle through the corner-radius spring, so the two cross-fade.
+        let customAmount = customPath == nil ? 0 : (1 - controlAmount)
+
+        if let customPath, customAmount > 0.001 {
+                fill.nsColor
+                    .withAlphaComponent(fill.alpha * shapeAlpha * customAmount)
+                    .setFill()
+            customPath.fill()
+        }
+        if customAmount < 0.999 {
+            fill.nsColor
+                .withAlphaComponent(fill.alpha * shapeAlpha * (1 - customAmount))
+                .setFill()
+            roundedPath.fill()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        strokeBorder(
+            roundedPath: roundedPath,
+            customPath: customPath,
+            customAmount: customAmount,
+            controlAmount: controlAmount,
+            shapeAlpha: shapeAlpha,
+            isDark: isDark
+        )
+    }
+
+    private func strokeBorder(
+        roundedPath: NSBezierPath,
+        customPath: NSBezierPath?,
+        customAmount: CGFloat,
+        controlAmount: CGFloat,
+        shapeAlpha: CGFloat,
+        isDark: Bool
+    ) {
+        let borderWidth = CGFloat(pointerSettings.borderWidth)
+        if borderWidth > 0.01 {
+            let border = pointerSettings.border(isDark: isDark)
+            // The user's border belongs to the free pointer. The snapped state
+            // keeps its own hairline, so this fades out as the pointer morphs.
+            let freeAmount = 1 - controlAmount
+            if freeAmount > 0.001 {
+                border.nsColor
+                    .withAlphaComponent(border.alpha * shapeAlpha * freeAmount)
+                    .setStroke()
+                if let customPath, customAmount > 0.001 {
+                    customPath.lineWidth = borderWidth
+                    customPath.stroke()
+                }
+                if customAmount < 0.999 {
+                    roundedPath.lineWidth = borderWidth
+                    roundedPath.stroke()
+                }
+            }
+        }
+
+        let controlBorderWidth = CGFloat(pointerSettings.controlBorderWidth)
+        if controlAmount > 0.01, controlBorderWidth > 0.01 {
+            let controlBorder = pointerSettings.controlBorder(isDark: isDark)
+            controlBorder.nsColor
+                .withAlphaComponent(controlBorder.alpha * controlAmount * shapeAlpha)
+                .setStroke()
+            roundedPath.lineWidth = controlBorderWidth
+            roundedPath.stroke()
+        }
+    }
+
+    private func roundedRectanglePath(in shapeRect: NSRect) -> NSBezierPath {
+        let radius = min(
+            CursorOverlay.currentCornerRadius,
+            min(shapeRect.width, shapeRect.height) / 2
+        )
+        return NSBezierPath(roundedRect: shapeRect, xRadius: radius, yRadius: radius)
+    }
+
+    private func customPath(in shapeRect: NSRect) -> NSBezierPath? {
+        pointerSettings.shape.customPath(in: shapeRect)
     }
 
     private func drawIBeam(in rect: NSRect, alpha: CGFloat, isDark: Bool) {
@@ -117,6 +199,7 @@ final class CursorOverlay {
     private var pressedAmount: CGFloat = 0
     private var opacity: CGFloat = 1
     private var initialized = false
+    private var settings = CursorAppearanceSettings()
 
     init(initialPosition: CGPoint) {
         center = initialPosition
@@ -175,20 +258,22 @@ final class CursorOverlay {
         // run-loop frame (for example while the system is changing Spaces).
         let dt = deltaTime.clamped(to: (1 / 240)...(1 / 60))
 
+        let freeSize = CGFloat(settings.pointerSize)
         var desiredCenter = physicalPosition
-        var desiredSize = CGSize(width: 20, height: 20)
-        var desiredRadius: CGFloat = 10
+        var desiredSize = CGSize(width: freeSize, height: freeSize)
+        var desiredRadius = freeSize * settings.shape.cornerRadiusFraction
         var desiredControlAmount: CGFloat = 0
         var desiredTextAmount: CGFloat = 0
 
         if let target {
             switch target.kind {
             case .control:
-                let targetFrame = target.frame.insetBy(dx: -3, dy: -3)
+                let padding = CGFloat(settings.controlPadding)
+                let targetFrame = target.frame.insetBy(dx: -padding, dy: -padding)
                 desiredCenter = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
                 desiredSize = targetFrame.size
                 desiredRadius = min(
-                    target.cornerRadius + 3,
+                    target.cornerRadius + padding,
                     min(targetFrame.width, targetFrame.height) / 2
                 )
                 desiredControlAmount = 1
@@ -264,7 +349,14 @@ final class CursorOverlay {
         )
         panel.alphaValue = opacity
         panel.setFrame(appKitFrame, display: false)
+
         cursorView.needsDisplay = true
+    }
+
+    func applySettings(_ settings: CursorAppearanceSettings) {
+        self.settings = settings
+        cursorView.pointerSettings = settings
+
     }
 
     func show() {
@@ -304,10 +396,6 @@ final class CursorOverlay {
 }
 
 private extension CGFloat {
-    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
-        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
-    }
-
     mutating func approach(_ target: CGFloat, rate: CGFloat, dt: CGFloat) {
         let amount = 1 - exp(-rate * dt)
         self += (target - self) * amount

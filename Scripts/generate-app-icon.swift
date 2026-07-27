@@ -49,6 +49,9 @@ private func circle(at center: Vector, radius: CGFloat) -> NSBezierPath {
     )
 }
 
+// The comet's proportions are mirrored in Sources/NextCursor/CometMark.swift,
+// which draws the same mark for the menu bar. Changing one without the other
+// leaves the app icon and the status item showing different marks.
 private func drawIcon() {
     let backgroundRect = NSRect(x: 72, y: 72, width: 880, height: 880)
     let background = NSBezierPath(roundedRect: backgroundRect, xRadius: 208, yRadius: 208)
